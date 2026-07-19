@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ファイル管理アプリ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* ドラッグ中のフォルダホバー効果用のスタイル */
+    .drag-over {
+      transform: scale(1.1);
+      background-color: rgba(254, 243, 199, 0.5);
+      border-radius: 0.75rem;
+    }
+
+    .scrollable-panel {
+      scrollbar-width: thin;
+      scrollbar-color: #cbd5e1 transparent;
+    }
+
+    .scrollable-panel::-webkit-scrollbar {
+      height: 8px;
+    }
+
+    .scrollable-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .scrollable-panel::-webkit-scrollbar-thumb {
+      background-color: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex justify-center items-start min-h-screen p-2 sm:p-4 lg:p-6 relative overflow-hidden">
+
+  <div id="toast" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm shadow-md transition-all duration-300 translate-y-20 opacity-0 pointer-events-none z-50">
+    ファイルを移動しました
+  </div>
+
+  <div class="w-full max-w-[1280px] min-h-[88vh] max-h-[none] bg-white rounded-[32px] shadow-xl border border-gray-200 p-3 sm:p-5 lg:p-6 overflow-y-auto flex flex-col lg:flex-row lg:gap-6">
+    
+    <div class="w-full lg:w-[62%] flex flex-col gap-4">
+      <div class="flex items-center gap-3">
+      <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 flex-1 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-500">Workspace</p>
+          <p class="text-sm font-semibold text-gray-700">ファイル管理</p>
+        </div>
+        <div class="flex items-center gap-2 text-gray-500">
+          <i class="fa-solid fa-folder-open"></i>
+          <i class="fa-solid fa-chevron-down text-[10px]"></i>
+        </div>
+      </div>
+      
+      <div class="relative flex-1">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <input id="search-input" type="text" placeholder="検索" class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+    </div>
+
+    <div class="rounded-2xl border border-gray-200 overflow-hidden">
+      <button id="uncategorized-toggle" class="flex w-full items-center justify-between bg-gray-100 px-4 py-4" aria-expanded="false">
+        <span class="text-gray-700 font-medium text-sm">未分類</span>
+        <div class="flex items-center gap-2">
+          <span id="file-count" class="text-gray-500 font-bold text-sm">2 件</span>
+          <i id="uncategorized-icon" class="fa-solid fa-chevron-right text-gray-500 text-xs transition-transform"></i>
+        </div>
+      </button>
+
+      <div id="uncategorized-files" class="hidden border-t border-gray-200 bg-white px-3 py-3 overflow-x-auto scrollable-panel">
+        <div id="uncategorized-file-list" class="flex gap-3 pb-2"></div>
+      </div>
+    </div>
+
+    <div>
+      <button class="flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition min-h-[44px]">
+        <span>最新</span>
+        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+      </button>
+    </div>
+
+    <div id="folder-grid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-3 pt-2">
+      <div class="folder-item flex flex-col items-center gap-2 p-3 rounded-2xl cursor-pointer group transition-all duration-200 min-h-[110px] justify-center border border-transparent hover:border-gray-200 hover:bg-gray-50" data-name="フォルダ1">
+        <div class="text-amber-400 text-5xl group-hover:scale-105 transition-transform pointer-events-none">
+          <i class="fa-solid fa-folder"></i>
+        </div>
+        <span class="text-sm text-gray-600 truncate w-full text-center pointer-events-none">フォルダ1</span>
+      </div>
+
+      <div class="folder-item flex flex-col items-center gap-2 p-3 rounded-2xl cursor-pointer group transition-all duration-200 min-h-[110px] justify-center border border-transparent hover:border-gray-200 hover:bg-gray-50" data-name="フォルダ2">
+        <div class="text-amber-400 text-5xl group-hover:scale-105 transition-transform pointer-events-none">
+          <i class="fa-solid fa-folder"></i>
+        </div>
+        <span class="text-sm text-gray-600 truncate w-full text-center pointer-events-none">フォルダ2</span>
+      </div>
+
+      <div class="folder-item flex flex-col items-center gap-2 p-3 rounded-2xl cursor-pointer group transition-all duration-200 min-h-[110px] justify-center border border-transparent hover:border-gray-200 hover:bg-gray-50" data-name="フォルダ3">
+        <div class="text-amber-400 text-5xl group-hover:scale-105 transition-transform pointer-events-none">
+          <i class="fa-solid fa-folder"></i>
+        </div>
+        <span class="text-sm text-gray-600 truncate w-full text-center pointer-events-none">フォルダ3</span>
+      </div>
+
+      <div class="folder-item flex flex-col items-center gap-2 p-3 rounded-2xl cursor-pointer group transition-all duration-200 min-h-[110px] justify-center border border-transparent hover:border-gray-200 hover:bg-gray-50" data-name="フォルダ4">
+        <div class="text-amber-400 text-5xl group-hover:scale-105 transition-transform pointer-events-none">
+          <i class="fa-solid fa-folder"></i>
+        </div>
+        <span class="text-sm text-gray-600 truncate w-full text-center pointer-events-none">フォルダ4</span>
+      </div>
+    </div>
+
+    <div id="folder-detail-view" class="hidden rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 space-y-3 transform transition-all duration-300 scale-95 opacity-0">
+      <div class="flex items-center justify-between">
+        <button id="back-to-main" class="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-800 min-h-[44px] px-2 rounded-lg">
+          <i class="fa-solid fa-arrow-left"></i>
+          <span>戻る</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="folder-detail-icon" class="text-5xl text-amber-400">
+          <i class="fa-solid fa-folder"></i>
+        </div>
+        <div class="space-y-1">
+          <div id="folder-detail-title" class="text-lg font-semibold text-gray-700"></div>
+          <div id="folder-detail-subtitle" class="text-xs text-gray-500">中身を確認できます</div>
+        </div>
+      </div>
+      <div id="folder-detail-files" class="flex gap-3 overflow-x-auto pb-2 pr-1 scrollable-panel"></div>
+    </div>
+    </div>
+
+    <div class="w-full lg:w-[34%] flex flex-col gap-4">
+      <div class="rounded-[24px] border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-4 sm:p-5 shadow-sm">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-600">Menu</p>
+        <h2 class="mt-2 text-lg font-semibold text-gray-800">メニュー</h2>
+        <div class="mt-4 space-y-2">
+          <div class="flex items-center justify-between rounded-2xl bg-white px-3 py-3 text-sm font-medium text-gray-700 shadow-sm">
+            <span>最近開いた項目</span>
+            <i class="fa-solid fa-clock text-gray-400"></i>
+          </div>
+          <div class="flex items-center justify-between rounded-2xl bg-white px-3 py-3 text-sm font-medium text-gray-700 shadow-sm">
+            <span>フォルダ一覧</span>
+            <i class="fa-solid fa-folder text-gray-400"></i>
+          </div>
+          <div class="flex items-center justify-between rounded-2xl bg-white px-3 py-3 text-sm font-medium text-gray-700 shadow-sm">
+            <span>未分類ファイル</span>
+            <i class="fa-solid fa-file text-gray-400"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toggleButton = document.getElementById('uncategorized-toggle');
+      const filesPanel = document.getElementById('uncategorized-files');
+      const icon = document.getElementById('uncategorized-icon');
+      const uncategorizedList = document.getElementById('uncategorized-file-list');
+      const folderGrid = document.getElementById('folder-grid');
+      const folderDetailView = document.getElementById('folder-detail-view');
+      const folderDetailTitle = document.getElementById('folder-detail-title');
+      const folderDetailFiles = document.getElementById('folder-detail-files');
+      const backToMainButton = document.getElementById('back-to-main');
+      const folders = document.querySelectorAll('.folder-item');
+      const fileCountSpan = document.getElementById('file-count');
+      const toast = document.getElementById('toast');
+      const searchInput = document.getElementById('search-input');
+
+      const uncategorizedFiles = [
+        { name: 'report.pdf', iconClass: 'fa-solid fa-file text-blue-400' },
+        { name: 'meeting.docx', iconClass: 'fa-solid fa-file-word text-blue-500' }
+      ];
+
+      const folderContents = {
+        'フォルダ1': [
+          { name: 'design.pdf', iconClass: 'fa-solid fa-file-pdf text-red-400' },
+          { name: 'image.png', iconClass: 'fa-solid fa-image text-green-400' }
+        ],
+        'フォルダ2': [],
+        'フォルダ3': [],
+        'フォルダ4': []
+      };
+
+      let draggedFile = null;
+      let draggedFileSource = null;
+      let currentFolderName = null;
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => {
+          toast.classList.add('translate-y-20', 'opacity-0');
+        }, 2500);
+      }
+
+      function renderUncategorizedFiles() {
+        uncategorizedList.innerHTML = '';
+
+        if (uncategorizedFiles.length === 0) {
+          uncategorizedList.innerHTML = '<div class="text-sm text-gray-500">未分類のファイルはありません</div>';
+        } else {
+          uncategorizedList.className = 'flex gap-3 pb-2';
+          uncategorizedFiles.forEach(file => {
+            const row = document.createElement('div');
+            row.className = 'file-item uncategorized-file-item flex min-w-[104px] flex-shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-transparent p-3 min-h-[120px] cursor-grab active:cursor-grabbing transition-all duration-200 hover:border-gray-200 hover:bg-gray-50';
+            row.draggable = true;
+            row.dataset.name = file.name;
+            row.dataset.source = 'uncategorized';
+            row.innerHTML = `
+              <div class="text-5xl pointer-events-none">
+                <i class="${file.iconClass}"></i>
+              </div>
+              <span class="text-sm text-gray-600 truncate w-full text-center pointer-events-none">${file.name}</span>
+            `;
+
+            row.addEventListener('dragstart', () => {
+              draggedFile = row;
+              draggedFileSource = 'uncategorized';
+              row.classList.add('opacity-50');
+            });
+
+            row.addEventListener('dragend', () => {
+              row.classList.remove('opacity-50');
+              draggedFile = null;
+              draggedFileSource = null;
+            });
+
+            uncategorizedList.appendChild(row);
+          });
+        }
+
+        fileCountSpan.textContent = `${uncategorizedFiles.length} 件`;
+      }
+
+      function renderFolderView(folderName) {
+        currentFolderName = folderName;
+        folderDetailTitle.textContent = folderName;
+        folderDetailFiles.innerHTML = '';
+
+        const files = folderContents[folderName] || [];
+        if (files.length === 0) {
+          folderDetailFiles.innerHTML = '<div class="text-sm text-gray-500">このフォルダにはファイルがありません</div>';
+        } else {
+          folderDetailFiles.className = 'flex gap-3 pb-2';
+          files.forEach(file => {
+            const row = document.createElement('div');
+            row.className = 'flex min-w-[104px] flex-shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border border-gray-200 p-3 min-h-[120px] hover:bg-gray-50 transition-all duration-200 cursor-grab active:cursor-grabbing';
+            row.draggable = true;
+            row.dataset.name = file.name;
+            row.dataset.source = 'folder';
+            row.innerHTML = `
+              <div class="text-5xl pointer-events-none">
+                <i class="${file.iconClass}"></i>
+              </div>
+              <span class="text-sm text-gray-600 truncate w-full text-center pointer-events-none">${file.name}</span>
+            `;
+
+            row.addEventListener('dragstart', () => {
+              draggedFile = row;
+              draggedFileSource = 'folder';
+              row.classList.add('opacity-50');
+            });
+
+            row.addEventListener('dragend', () => {
+              row.classList.remove('opacity-50');
+              draggedFile = null;
+              draggedFileSource = null;
+            });
+
+            folderDetailFiles.appendChild(row);
+          });
+        }
+      }
+
+      function showFolderDetail(folderName) {
+        folderGrid.classList.add('hidden');
+        folderDetailView.classList.remove('hidden');
+        requestAnimationFrame(() => {
+          folderDetailView.classList.remove('scale-95', 'opacity-0');
+          folderDetailView.classList.add('scale-100', 'opacity-100');
+        });
+        renderFolderView(folderName);
+      }
+
+      function backToMainView() {
+        folderDetailView.classList.remove('scale-100', 'opacity-100');
+        folderDetailView.classList.add('scale-95', 'opacity-0');
+        folderDetailView.addEventListener('transitionend', function handler() {
+          folderDetailView.classList.add('hidden');
+          folderDetailView.removeEventListener('transitionend', handler);
+        });
+        folderGrid.classList.remove('hidden');
+        currentFolderName = null;
+      }
+
+      function moveFileToFolder(fileName, folderName) {
+        const index = uncategorizedFiles.findIndex(file => file.name === fileName);
+        if (index === -1) return;
+
+        const [movedFile] = uncategorizedFiles.splice(index, 1);
+        if (!folderContents[folderName]) {
+          folderContents[folderName] = [];
+        }
+        folderContents[folderName].push(movedFile);
+
+        renderUncategorizedFiles();
+        if (currentFolderName === folderName) {
+          renderFolderView(folderName);
+        }
+        showToast(`「${fileName}」を${folderName}に移動しました`);
+      }
+
+      function moveFileToUncategorized(folderName, fileName) {
+        const files = folderContents[folderName] || [];
+        const index = files.findIndex(file => file.name === fileName);
+        if (index === -1) return;
+
+        const [movedFile] = files.splice(index, 1);
+        uncategorizedFiles.push(movedFile);
+
+        renderUncategorizedFiles();
+        renderFolderView(folderName);
+        showToast(`「${fileName}」を未分類に戻しました`);
+      }
+
+      filesPanel.addEventListener('dragover', (e) => {
+        if (draggedFile && draggedFileSource === 'folder' && currentFolderName) {
+          e.preventDefault();
+          filesPanel.classList.add('bg-amber-50');
+        }
+      });
+
+      filesPanel.addEventListener('dragleave', () => {
+        filesPanel.classList.remove('bg-amber-50');
+      });
+
+      filesPanel.addEventListener('drop', () => {
+        filesPanel.classList.remove('bg-amber-50');
+        if (draggedFile && draggedFileSource === 'folder' && currentFolderName) {
+          moveFileToUncategorized(currentFolderName, draggedFile.getAttribute('data-name'));
+        }
+      });
+
+      toggleButton.addEventListener('click', () => {
+        const expanded = toggleButton.getAttribute('aria-expanded') === 'true';
+        toggleButton.setAttribute('aria-expanded', String(!expanded));
+        filesPanel.classList.toggle('hidden', expanded);
+        icon.classList.toggle('rotate-90', !expanded);
+      });
+
+      folders.forEach(folder => {
+        folder.addEventListener('click', () => {
+          showFolderDetail(folder.getAttribute('data-name'));
+        });
+
+        folder.addEventListener('dragover', (e) => {
+          e.preventDefault();
+        });
+
+        folder.addEventListener('dragenter', () => {
+          folder.classList.add('drag-over');
+        });
+
+        folder.addEventListener('dragleave', () => {
+          folder.classList.remove('drag-over');
+        });
+
+        folder.addEventListener('drop', () => {
+          folder.classList.remove('drag-over');
+          if (draggedFile) {
+            const fileName = draggedFile.getAttribute('data-name');
+            const folderName = folder.getAttribute('data-name');
+            moveFileToFolder(fileName, folderName);
+          }
+        });
+      });
+
+      backToMainButton.addEventListener('click', backToMainView);
+      renderUncategorizedFiles();
+
+      searchInput.addEventListener('input', (e) => {
+        const keyword = e.target.value.toLowerCase().trim();
+        let matchInFiles = false;
+
+        document.querySelectorAll('.uncategorized-file-item').forEach(file => {
+          const name = file.getAttribute('data-name').toLowerCase();
+          const hit = name.includes(keyword);
+          file.classList.toggle('hidden', !hit);
+          if (hit) matchInFiles = true;
+        });
+
+        folders.forEach(folder => {
+          const name = folder.getAttribute('data-name').toLowerCase();
+          folder.classList.toggle('hidden', !name.includes(keyword));
+        });
+
+        if (keyword !== '' && matchInFiles) {
+          toggleButton.setAttribute('aria-expanded', 'true');
+          filesPanel.classList.remove('hidden');
+          icon.classList.add('rotate-90');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
